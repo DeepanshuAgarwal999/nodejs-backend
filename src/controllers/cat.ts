@@ -1,20 +1,15 @@
 import { Request, Response } from "express";
 import { connection } from "../db/db";
 import { ResultSetHeader, RowDataPacket } from "mysql2";
-import { CatDto } from "../dtos/Cat.dto";
 
 export const getAllCats = async (
   req: Request,
   res: Response
-): Promise<CatDto[] | any> => {
+): Promise<void> => {
   try {
     const { page = 1, limit = 5 } = req.query;
 
     const offset: string = ((Number(page) - 1) * Number(limit)).toString();
-
-    if (!connection) {
-      return res.status(500).json({ message: "Database connection failed" });
-    }
 
     const [results] = await connection.execute(
       "SELECT * FROM cats LIMIT ? OFFSET ?",
@@ -27,7 +22,7 @@ export const getAllCats = async (
 
     const totalPages = Math.ceil(count[0]?.count / +limit);
 
-    return res.status(200).json({
+    res.status(200).json({
       data: results,
       pagination: {
         page: +page,
@@ -37,48 +32,42 @@ export const getAllCats = async (
     });
   } catch (err) {
     console.error("Error fetching cats:", err);
-    return res.status(500).json({ message: "Server error", error: err });
+    res.status(500).json({ message: "Server error", error: err });
   }
 };
 export const getCatById = async (
   req: Request,
   res: Response
-): Promise<CatDto | any> => {
+): Promise<void> => {
   const { id } = req.params;
   try {
-    if (!connection) {
-      return res.status(500).json({ message: "Database connection failed" });
-    }
-
     const [results] = await connection.execute<RowDataPacket[]>(
       "SELECT * FROM `cats` WHERE `id` = ?",
       [id]
     );
     console.log(results.length === 0);
     if (!results || results.length === 0) {
-      return res.status(404).json({ message: "Cat not found" });
+      res.status(404).json({ message: "Cat not found" });
+      return;
     }
 
-    return res.status(200).json({ data: results });
+    res.status(200).json({ data: results });
   } catch (err) {
     console.error("Error fetching cats:", err);
-    return res.status(500).json({ message: "Server error", error: err });
+    res.status(500).json({ message: "Server error", error: err });
   }
 };
-export const createCat = async (
-  req: Request,
-  res: Response
-): Promise<CatDto[] | any> => {
+export const createCat = async (req: Request, res: Response): Promise<void> => {
   try {
     const { name, age, breed } = req.body;
 
     if (!name || !age || !breed) {
-      return res
-        .status(400)
-        .json({ message: "Please provide name, age, and breed" });
+      res.status(400).json({ message: "Please provide name, age, and breed" });
+      return;
     }
     if (!connection) {
-      return res.status(500).json({ message: "Database connection failed" });
+      res.status(500).json({ message: "Database connection failed" });
+      return;
     }
 
     const [results] = await connection?.execute(
@@ -86,43 +75,37 @@ export const createCat = async (
       [name, age, breed]
     );
 
-    return res.status(201).json({ data: results });
+    res.status(201).json({ data: results });
   } catch (error) {
     console.error("Error while adding cats:", error);
-    return res.status(500).json({ message: "Server error", error: error });
+    res.status(500).json({ message: "Server error", error: error });
   }
 };
 
 export const searchCatsByAge = async (
   req: Request,
   res: Response
-): Promise<CatDto[] | any> => {
+): Promise<void> => {
   const { age_lte, age_gte } = req.query;
-  if (!connection) {
-    return res.status(500).json({ message: "Database connection failed" });
-  }
+
   try {
     const [results] = await connection.execute(
       "SELECT * FROM `cats` WHERE `age` <= ? AND `age` >= ?",
       [age_lte, age_gte]
     );
-    return res.status(200).json({ data: results });
+    res.status(200).json({ data: results });
   } catch (err) {
     console.error("Error searching cats:", err);
-    return res.status(500).json({ message: "Server error", error: err });
+    res.status(500).json({ message: "Server error", error: err });
   }
 };
 
 export const updateCatById = async (
   req: Request,
   res: Response
-): Promise<{ message: string } | Response> => {
+): Promise<void> => {
   const { id } = req.params;
   const { name, age, breed } = req.body;
-
-  if (!connection) {
-    return res.status(500).json({ message: "Database connection failed" });
-  }
 
   const fields: string[] = [];
   const values: any[] = [];
@@ -141,7 +124,8 @@ export const updateCatById = async (
   }
 
   if (fields.length === 0) {
-    return res.status(400).json({ message: "No fields to update" });
+    res.status(400).json({ message: "No fields to update" });
+    return;
   }
 
   values.push(id);
@@ -152,24 +136,23 @@ export const updateCatById = async (
     const [result] = await connection.execute<ResultSetHeader>(query, values);
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Cat not found" });
+      res.status(404).json({ message: "Cat not found" });
+      return;
     }
 
-    return res.status(200).json({ message: "Cat updated successfully" });
+    res.status(200).json({ message: "Cat updated successfully" });
   } catch (err) {
     console.error("Error updating cat:", err);
-    return res.status(500).json({ message: "Server error", error: err });
+    res.status(500).json({ message: "Server error", error: err });
   }
 };
 
 export const deleteCatById = async (
   req: Request,
   res: Response
-): Promise<{ message: String } | Response> => {
+): Promise<void> => {
   const { id } = req.params;
-  if (!connection) {
-    return res.status(500).json({ message: "Database connection failed" });
-  }
+
   try {
     const [result] = await connection.execute<ResultSetHeader>(
       "DELETE FROM `cats` WHERE `id` = ?",
@@ -177,12 +160,13 @@ export const deleteCatById = async (
     );
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Cat not found" });
+      res.status(404).json({ message: "Cat not found" });
+      return;
     }
 
-    return res.status(200).json({ message: "Cat deleted successfully" });
+    res.status(200).json({ message: "Cat deleted successfully" });
   } catch (err) {
     console.error("Error deleting cat:", err);
-    return res.status(500).json({ message: "Server error", error: err });
+    res.status(500).json({ message: "Server error", error: err });
   }
 };

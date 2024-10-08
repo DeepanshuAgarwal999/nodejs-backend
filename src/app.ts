@@ -3,6 +3,7 @@ import { connectDB } from "./db/db";
 import morgan from "morgan";
 import catRouter from "./routes/cat.route";
 import "dotenv/config";
+import isConnected from "./middleware/isConnected";
 
 const PORT = 4000;
 
@@ -16,7 +17,8 @@ app.get("/", (req: Request, res: Response) => {
     message: "helloworld",
   });
 });
-app.use("/api", catRouter);
+
+app.use("/api", isConnected, catRouter);
 
 connectDB();
 app.listen(PORT, () => {
